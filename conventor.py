@@ -93,11 +93,11 @@ class Conventor:
 
         all_keys = contents.keys()
 
-        if contents.get('__re-sort__', False):
-            all_keys = sorted(all_keys, key=lambda key: re.sub('[\W_]+', key))
+        if contents.get("__re-sort__", False):
+            all_keys = sorted(all_keys, key=lambda key: re.sub("[\W_]+", key))
 
         for key in all_keys:
-	    if key == "__re-sort__":
+            if key == "__re-sort__":
                 continue
 
             left = key
