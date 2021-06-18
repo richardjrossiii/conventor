@@ -91,7 +91,18 @@ class Conventor:
         table.align["a"] = "l"
         table.align["b"] = "l"
 
-        for left, right in contents.items():
+        all_keys = contents.keys()
+
+        if contents.get('__re-sort__', False):
+            all_keys = sorted(all_keys, key=lambda key: re.sub('[\W_]+', key))
+
+        for key in all_keys:
+	    if key == "__re-sort__":
+                continue
+
+            left = key
+            right = contents.get(key)
+
             table.add_row(
                 [
                     self.macro_substitute(left, "left"),
