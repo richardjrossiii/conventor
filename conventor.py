@@ -1,6 +1,5 @@
 import re
 import yaml
-from yamlinclude import YamlIncludeConstructor
 import prettytable
 import logging
 from docutils.core import publish_file
