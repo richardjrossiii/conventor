@@ -18,29 +18,53 @@ class Conventor:
     tables: Dict[str, Optional[Dict[str, str]]]
 
     def __init__(self, input_path: Path):
+        parent_path = input_path.parent.resolve()
+
         input_data = yaml.safe_load(open(input_path))
 
-        include = input_data.pop("include")
-        for i in include:
-            i_path = (input_path.parent / i).resolve()
+        seen_includes = set()
+
+        include = [
+            (input_path.parent / i).resolve() for i in input_data.pop("include", [])
+        ]
+
+        for i_path in include:
+            # Make it slightly more readable in spew.
+            rel_path = i_path.relative_to(parent_path)
+
             if i_path.suffix != ".yaml":
                 logger.warning(
-                    f"Cowardly refusing to include content for file {i} "
+                    f"Cowardly refusing to include content for file {rel_path} "
                     + "it doesn't appear to be a YAML file!"
                 )
+                continue
 
             if input_path.parent.resolve() not in i_path.parents:
                 logger.warning(
-                    f"Cowardly refusing to include content for file {i} "
+                    f"Cowardly refusing to include content for file {rel_path} "
                     + "it appears to escape the parent directory!"
                 )
                 continue
 
+            # All includes are done once, but include statements may be duplicated
+            # for sanity reasons.
+            if i_path in seen_includes:
+                continue
+            seen_includes.add(i_path)
+
             included_data = yaml.safe_load(open(i_path))
+
+            # Nested includes are relative
+            include.extend(
+                [
+                    (i_path.parent / i).resolve()
+                    for i in included_data.pop("include", [])
+                ]
+            )
 
             input_data.update(
                 {
-                    (i_path.stem + "/" + key): value
+                    (str(rel_path.with_suffix("")) + "/" + key): value
                     for key, value in included_data.items()
                 }
             )
