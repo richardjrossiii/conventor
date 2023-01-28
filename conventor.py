@@ -4,7 +4,7 @@ import prettytable
 import logging
 from docutils.core import publish_file
 
-from typing import Dict, List, Optional
+from typing import Dict, List, Tuple, Optional
 
 from pathlib import Path
 
@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 
 class Conventor:
-    macros: Dict[str, str]
+    macros: Dict[str, List[Tuple[str, str]]]
     sections: List[Dict[str, str]]
 
     tables: Dict[str, Optional[Dict[str, str]]]
@@ -69,7 +69,10 @@ class Conventor:
                 }
             )
 
-        self.macros = input_data.pop("macros")
+        self.macros = {
+            section: list(macros.items())
+            for section, macros in input_data.pop("macros", {}).items()
+        }
         self.sections = input_data.pop("sections")
         self.tables = input_data
 
@@ -119,8 +122,16 @@ class Conventor:
         if contents.get("__re-sort__", False):
             all_keys = sorted(all_keys, key=lambda key: re.sub("[\W_]+", "", key))
 
+        extra_macros = {
+            section: list(macros.items())
+            for section, macros in contents.get("macros", {}).items()
+        }
+
         for key in all_keys:
             if key == "__re-sort__":
+                continue
+
+            if key == "macros":
                 continue
 
             left = key
@@ -128,8 +139,8 @@ class Conventor:
 
             table.add_row(
                 [
-                    self.macro_substitute(left, "left"),
-                    self.macro_substitute(right, "right"),
+                    self.macro_substitute(left, "left", extra_macros),
+                    self.macro_substitute(right, "right", extra_macros),
                 ]
             )
 
@@ -176,13 +187,20 @@ class Conventor:
 
         return output
 
-    def macro_substitute(self, content: str, section: str) -> str:
-        macros_to_process = {
-            **self.macros["everywhere"],
-            **self.macros.get(section, {}),
-        }
-        # TODO: Compile these ahead of time for performance
-        for find, replace in macros_to_process.items():
+    def macro_substitute(
+        self,
+        content: str,
+        section: str,
+        extra_macros: Dict[str, List[Tuple[str, str]]] = {},
+    ) -> str:
+        macros_to_process = [
+            # local macros apply first, and 'override' global macros.
+            *extra_macros.get("everywhere", {}),
+            *extra_macros.get(section, {}),
+            *self.macros["everywhere"],
+            *self.macros.get(section, {}),
+        ]
+        for find, replace in macros_to_process:
             content = re.sub(find, replace, content)
 
         return content
